@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-inherit="web.FieldTooltip"  t-inherit-mode="extension">
+        <xpath expr="//ul" position="inside">
+            <li t-if="field.depends and field.depends.length > 0" data-item="depends">
+                <span class="o-tooltip--technical--title">Depends:</span>
+                <t t-esc="field.depends.join(', ')"/>
+            </li>
+            <t t-if="field.depends and field.depends.length >  0">
+                <li t-if="field.store" data-item="store">
+                    <span class="o-tooltip--technical--title">Store:</span>
+                    <t t-esc="field.store ? 'True' : 'False'"/>
+                </li>
+            </t>
+        </xpath>
+    </t>
+
+</templates>
