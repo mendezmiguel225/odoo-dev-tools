@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+
+    <t t-inherit-mode="extension" t-inherit="web.ReportAction">
+        <xpath expr="//button[@t-on-click='print']" position="after">
+            <t t-if="props.action.context and props.action.context.pdf_preview">
+                <button t-on-click="toggleReportFormat" type="button" class="btn btn-primary" title="Change">Cambiar formato</button>
+            </t>
+        </xpath>
+    </t>
+
+
+</templates>
