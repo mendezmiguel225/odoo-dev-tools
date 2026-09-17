@@ -4,7 +4,7 @@
     "category": "Technical",
     "summary": "Audit model access and record rules for a selected user",
     "author": "Miguel Vazquez",
-    "license": "AGPL-3",
+    "license": "LGPL-3",
     "depends": ["base", "web"],
     "data": [
         "security/ir.model.access.csv",
