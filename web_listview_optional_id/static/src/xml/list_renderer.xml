@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t
+        t-name="web_listview_optional_id.ListRenderer.RecordRow"
+        t-inherit="web.ListRenderer.RecordRow"
+        t-inherit-mode="extension"
+    >
+        <xpath expr="//t[@t-set='isInvisible']" position="attributes">
+            <attribute name="t-value">column.id !== "__debug_optional_id__" &amp;&amp; (evalInvisible(column.invisible, record) || !(column.name in record.data))</attribute>
+        </xpath>
+        <xpath expr="//t[@t-if='canUseFormatter(column, record)']" position="after">
+            <t t-elif="column.id === '__debug_optional_id__'" t-esc="getOptionalRecordId(record)" />
+        </xpath>
+        <xpath expr="//Field" position="attributes">
+            <attribute name="t-elif" />
+        </xpath>
+    </t>
+
+    <t
+        t-name="web_listview_optional_id.SaleListRenderer.RecordRow"
+        t-inherit="sale.ListRenderer.RecordRow"
+        t-inherit-mode="extension"
+    >
+        <xpath expr="//t[@t-set='isInvisible']" position="attributes">
+            <attribute name="t-value">column.id !== "__debug_optional_id__" &amp;&amp; (evalInvisible(column.invisible, record) || !(column.name in record.data))</attribute>
+        </xpath>
+        <xpath expr="//t[@t-if='canUseFormatter(column, record)']" position="after">
+            <t t-elif="column.id === '__debug_optional_id__'" t-esc="getOptionalRecordId(record)" />
+        </xpath>
+        <xpath expr="//Field" position="attributes">
+            <attribute name="t-elif" />
+        </xpath>
+    </t>
+</templates>
