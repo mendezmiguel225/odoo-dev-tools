@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_security_domain_audit,security.domain.audit.tool,security_domain_audit.model_security_domain_audit_tool,base.group_system,1,1,1,1

@@ -1,0 +1,414 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+    <t t-name="security_domain_audit.SecurityDomainAudit" owl="1">
+        <div class="o_security_audit_view h-100 d-flex flex-column">
+            <div class="o_security_audit_header bg-white border-bottom p-3">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-4 col-md-6">
+                        <label class="form-label fw-semibold mb-1">Usuario</label>
+                        <div class="input-group mb-2">
+                            <input
+                                type="text"
+                                class="form-control"
+                                placeholder="Buscar por nombre o login..."
+                                t-model="state.userSearch"
+                                t-on-keydown="onUserSearchKeydown"
+                            />
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary"
+                                title="Limpiar busqueda"
+                                t-on-click="clearUserSearch">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                        <select
+                            class="form-select"
+                            t-on-change="onUserChange"
+                            t-att-value="state.selectedUserId || ''">
+                            <option value="" t-if="!filteredUsers.length">No hay usuarios que coincidan...</option>
+                            <option
+                                t-foreach="filteredUsers"
+                                t-as="user"
+                                t-key="user.id"
+                                t-att-value="user.id"
+                                t-att-selected="user.id === state.selectedUserId">
+                                <t t-out="user.name"/> (<t t-out="user.login"/>)
+                            </option>
+                        </select>
+                        <div class="small text-muted mt-2">
+                            <t t-out="filteredUsers.length"/> resultados. Pulsa Enter para seleccionar el primero.
+                        </div>
+                    </div>
+                    <div class="col-lg-8 col-md-6 text-md-end">
+                        <div class="o_sdi_header_actions d-flex flex-wrap justify-content-end align-items-center gap-2 mb-2">
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                title="Recargar auditoria"
+                                t-att-disabled="state.loading"
+                                t-on-click="reloadAudit">
+                                <i class="fa fa-refresh me-1"/>Recargar
+                            </button>
+                            <span class="badge rounded-pill o_sdi_badge_counter">
+                                Modelos relacionados: <t t-out="state.models.length"/>
+                            </span>
+                            <span class="badge rounded-pill o_sdi_badge_counter">
+                                Grupos del usuario: <t t-out="state.groupCount"/>
+                            </span>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            Usuario activo:
+                            <strong t-if="selectedUser"><t t-out="selectedUser.name"/> (<t t-out="selectedUser.login"/>)</strong>
+                            <span t-if="!selectedUser">-</span>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary ms-2"
+                                title="Abrir permisos del usuario"
+                                t-att-disabled="!selectedUser"
+                                t-on-click="openSelectedUser">
+                                <i class="fa fa-list me-1"/>Abrir permisos
+                            </button>
+                        </div>
+                        <div class="small text-muted" t-if="state.auditUser">
+                            Compañía activa:
+                            <strong t-if="state.auditUser.active_company"><t t-out="state.auditUser.active_company.name"/></strong>
+                            <span t-if="!state.auditUser.active_company">-</span>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary ms-2"
+                                title="Abrir compañía"
+                                t-att-disabled="!state.auditUser.active_company"
+                                t-on-click="() => this.openCompanyPopup(state.auditUser.active_company.id)">
+                                <i class="fa fa-external-link me-1"/>Abrir compañía
+                            </button>
+                        </div>
+                        <div class="small text-muted mt-1" t-if="state.auditUser">
+                            <span class="ms-2">Compañías permitidas:</span>
+                            <strong><t t-out="auditCompanyNames"/></strong>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary ms-2"
+                                title="Ver compañías permitidas"
+                                t-att-disabled="!(state.auditUser.companies || []).length"
+                                t-on-click="openAllowedCompanies">
+                                <i class="fa fa-list me-1"/>Ver compañías
+                            </button>
+                        </div>
+                        <div class="small text-muted">
+                            Modelo seleccionado:
+                            <strong t-if="selectedModelInfo"><t t-out="selectedModelInfo.name"/> (<t t-out="selectedModelInfo.model"/>)</strong>
+                            <span t-if="!selectedModelInfo">Sin seleccionar</span>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary ms-2"
+                                title="Abrir modelo"
+                                t-att-disabled="!selectedModelInfo"
+                                t-on-click="openSelectedModel">
+                                <i class="fa fa-external-link me-1"/>Abrir modelo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="o_security_audit_body d-flex flex-grow-1 overflow-hidden">
+                <aside class="o_security_audit_sidebar border-end bg-white">
+                    <div class="p-3 border-bottom">
+                        <h6 class="mb-0 fw-bold">Modelos relacionados</h6>
+                    </div>
+                    <div class="p-3 border-bottom">
+                        <input
+                            type="text"
+                            class="form-control"
+                            placeholder="Buscar modelo..."
+                            t-model="state.modelSearch"
+                        />
+                    </div>
+                    <div class="list-group list-group-flush o_security_audit_sidebar_list">
+                        <button
+                            t-foreach="filteredModels"
+                            t-as="model"
+                            t-key="model.id"
+                            type="button"
+                            class="list-group-item list-group-item-action"
+                            t-att-class="state.selectedModel === model.model ? 'active' : ''"
+                            t-on-click="() => this.onModelSelect(model.model)">
+                            <div class="fw-semibold"><t t-out="model.name"/></div>
+                            <div class="small opacity-75"><t t-out="model.model"/></div>
+                            <div class="mt-1">
+                                <span t-if="model.from_access" class="badge rounded-pill o_sdi_badge_access me-1">Access</span>
+                                <span t-if="!model.from_access" class="badge rounded-pill o_sdi_badge_no_access me-1">Sin acceso</span>
+                                <span t-if="model.from_rules" class="badge rounded-pill o_sdi_badge_rules">Rules</span>
+                            </div>
+                        </button>
+                        <div t-if="!filteredModels.length" class="p-3 text-muted small">
+                            No hay modelos que coincidan con la busqueda.
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="o_security_audit_content flex-grow-1 overflow-auto p-3">
+                    <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3" role="status">
+                        <span>
+                            Contexto actual:
+                            <strong t-if="selectedUser"> <t t-out="selectedUser.name"/></strong>
+                            <span t-if="!selectedUser"> sin usuario</span>
+                        </span>
+                        <span>
+                            <strong t-if="selectedModelInfo"><t t-out="selectedModelInfo.name"/></strong>
+                            <span class="text-muted" t-if="selectedModelInfo"> (<t t-out="selectedModelInfo.model"/>)</span>
+                            <span class="text-muted" t-if="!selectedModelInfo">Sin modelo seleccionado</span>
+                        </span>
+                    </div>
+
+                    <div t-if="state.loading" class="alert alert-info mb-3">
+                        Cargando auditoria de seguridad...
+                    </div>
+
+                    <div t-if="!state.loading and !state.details" class="alert alert-secondary mb-0">
+                        Selecciona un modelo en la barra lateral para ver grupos relacionados, permisos y reglas.
+                    </div>
+
+                    <t t-if="state.details">
+                        <div class="alert alert-warning mb-3" role="alert">
+                            <strong>Importante:</strong>
+                            Las reglas de registro no conceden acceso al modelo.
+                            Si no existe permiso en ir.model.access para un modo, ese modo queda bloqueado aunque el dominio de reglas lo permita.
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light fw-semibold">
+                                Acceso al modelo (ir.model.access)
+                            </div>
+                            <div class="card-body d-flex flex-wrap gap-2">
+                                <span class="badge rounded-pill" t-att-class="state.details.access_summary.perm_read ? 'o_sdi_badge_access' : 'o_sdi_badge_no_access'">Read: <t t-out="state.details.access_summary.perm_read ? 'Si' : 'No'"/></span>
+                                <span class="badge rounded-pill" t-att-class="state.details.access_summary.perm_write ? 'o_sdi_badge_access' : 'o_sdi_badge_no_access'">Write: <t t-out="state.details.access_summary.perm_write ? 'Si' : 'No'"/></span>
+                                <span class="badge rounded-pill" t-att-class="state.details.access_summary.perm_create ? 'o_sdi_badge_access' : 'o_sdi_badge_no_access'">Create: <t t-out="state.details.access_summary.perm_create ? 'Si' : 'No'"/></span>
+                                <span class="badge rounded-pill" t-att-class="state.details.access_summary.perm_unlink ? 'o_sdi_badge_access' : 'o_sdi_badge_no_access'">Delete: <t t-out="state.details.access_summary.perm_unlink ? 'Si' : 'No'"/></span>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light fw-semibold">
+                                Grupos del usuario relacionados con el modelo
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive" t-if="state.details.related_groups.length">
+                                    <table class="table table-sm table-striped align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Grupo</th>
+                                                <th>Categoria</th>
+                                                <th>Read</th>
+                                                <th>Write</th>
+                                                <th>Create</th>
+                                                <th>Delete</th>
+                                                <th>Accion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="state.details.related_groups" t-as="group" t-key="group.id">
+                                                <td class="fw-semibold"><t t-out="group.name"/></td>
+                                                <td><t t-out="group.category"/></td>
+                                                <td><i t-att-class="group.perm_read ? 'fa fa-check text-success' : 'fa fa-times text-danger'"/></td>
+                                                <td><i t-att-class="group.perm_write ? 'fa fa-check text-success' : 'fa fa-times text-danger'"/></td>
+                                                <td><i t-att-class="group.perm_create ? 'fa fa-check text-success' : 'fa fa-times text-danger'"/></td>
+                                                <td><i t-att-class="group.perm_unlink ? 'fa fa-check text-success' : 'fa fa-times text-danger'"/></td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" t-on-click="() => this.openGroupPopup(group.id)">
+                                                        Ver grupo
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="alert alert-light border mb-0" t-if="!state.details.related_groups.length">
+                                    Este modelo no tiene grupos del usuario relacionados por accesos o reglas.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-header bg-light fw-semibold">
+                                Menus relacionados con el modelo
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive" t-if="state.details.menus.length">
+                                    <table class="table table-sm table-striped align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Menu</th>
+                                                <th>Accion</th>
+                                                <th>Visible para el usuario</th>
+                                                <th></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="state.details.menus" t-as="menu" t-key="menu.id">
+                                                <td>
+                                                    <div class="fw-semibold"><t t-out="menu.name"/></div>
+                                                    <div class="small text-muted"><t t-out="menu.complete_name"/></div>
+                                                </td>
+                                                <td>
+                                                    <div><t t-out="menu.action_name"/></div>
+                                                    <div class="small text-muted"><t t-out="menu.action_type"/></div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge rounded-pill" t-att-class="menu.visible ? 'o_sdi_badge_access' : 'o_sdi_badge_no_access'">
+                                                        <t t-out="menu.visible ? 'Si' : 'No'"/>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="Abrir menu"
+                                                        t-on-click="() => this.openMenuPopup(menu.id)">
+                                                        <i class="fa fa-external-link me-1"/>Ver menu
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="alert alert-light border mb-0" t-if="!state.details.menus.length">
+                                    No hay menus relacionados con este modelo.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="card mb-3"
+                            t-att-class="!modeRow.payload.has_model_access ? 'o_sdi_mode_denied' : ''"
+                            t-foreach="modeRows"
+                            t-as="modeRow"
+                            t-key="state.selectedModel + '-' + modeRow.mode">
+                            <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                                <span class="fw-semibold">Reglas de registro - <t t-out="modeLabel(modeRow.mode)"/></span>
+                                <span class="badge rounded-pill o_sdi_badge_rulecount">Reglas: <t t-out="modeRow.payload.rule_count"/></span>
+                            </div>
+                            <div class="card-body">
+                                <div t-if="!modeRow.payload.has_model_access" class="alert alert-danger py-2" role="alert">
+                                    Este modo no tiene permiso de acceso al modelo.
+                                    El dominio de reglas puede filtrarse, pero no habilita el acceso.
+                                </div>
+
+                                <div class="row g-3 mb-3">
+                                    <div class="col-lg-6">
+                                        <label class="form-label fw-semibold mb-1">Dominio global (AND)</label>
+                                        <DomainSelector
+                                            t-key="'global-' + state.selectedUserId + '-' + state.selectedModel + '-' + modeRow.mode + '-' + modeRow.payload.global_domain"
+                                            t-if="state.selectedModel &amp;&amp; modeRow.payload.domain_selector_supported"
+                                            resModel="state.selectedModel"
+                                            domain="modeRow.payload.global_domain"
+                                            readonly="true"
+                                            isDebugMode="!!env.debug"
+                                            className="'o_read_mode d-block'"
+                                        />
+                                        <code t-if="!modeRow.payload.domain_selector_supported"><t t-out="modeRow.payload.global_domain"/></code>
+                                        <div class="mt-1" t-if="modeRow.payload.global_count !== false">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                t-on-click="() => this.openDomainRecords(modeRow.payload.global_domain_list, modeLabel(modeRow.mode) + ' - Global')">
+                                                <t t-out="modeRow.payload.global_count"/> registros
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <label class="form-label fw-semibold mb-1">Dominio de todos los grupos del usuario (OR)</label>
+                                        <DomainSelector
+                                            t-key="'groups-' + state.selectedUserId + '-' + state.selectedModel + '-' + modeRow.mode + '-' + modeRow.payload.user_groups_domain"
+                                            t-if="state.selectedModel &amp;&amp; modeRow.payload.domain_selector_supported"
+                                            resModel="state.selectedModel"
+                                            domain="modeRow.payload.user_groups_domain"
+                                            readonly="true"
+                                            isDebugMode="!!env.debug"
+                                            className="'o_read_mode d-block'"
+                                        />
+                                        <code t-if="!modeRow.payload.domain_selector_supported"><t t-out="modeRow.payload.user_groups_domain"/></code>
+                                        <div class="mt-1" t-if="modeRow.payload.user_groups_count !== false">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                t-on-click="() => this.openDomainRecords(modeRow.payload.user_groups_domain_list, modeLabel(modeRow.mode) + ' - Grupos')">
+                                                <t t-out="modeRow.payload.user_groups_count"/> registros
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <label class="form-label fw-semibold mb-1">Dominio teórico del usuario (global AND grupos)</label>
+                                        <DomainSelector
+                                            t-key="'effective-' + state.selectedUserId + '-' + state.selectedModel + '-' + modeRow.mode + '-' + modeRow.payload.effective_user_domain"
+                                            t-if="state.selectedModel &amp;&amp; modeRow.payload.domain_selector_supported"
+                                            resModel="state.selectedModel"
+                                            domain="modeRow.payload.effective_user_domain"
+                                            readonly="true"
+                                            isDebugMode="!!env.debug"
+                                            className="'o_read_mode d-block'"
+                                        />
+                                        <div t-if="!modeRow.payload.domain_selector_supported" class="alert alert-light border py-2">
+                                            Este modelo no tiene campos seleccionables para representar el dominio visualmente.
+                                        </div>
+                                        <div class="small text-muted mt-1">
+                                            <strong>Texto:</strong>
+                                            <code><t t-out="modeRow.payload.effective_user_domain"/></code>
+                                        </div>
+                                        <div class="mt-1" t-if="modeRow.payload.effective_user_count !== false">
+                                            <button
+                                                type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                t-on-click="() => this.openDomainRecords(modeRow.payload.effective_user_domain_list, modeLabel(modeRow.mode) + ' - Teórico')">
+                                                <t t-out="modeRow.payload.effective_user_count"/> registros
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive" t-if="modeRow.payload.rules.length">
+                                    <table class="table table-sm table-hover align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Regla</th>
+                                                <th>Alcance</th>
+                                                <th>Grupos</th>
+                                                <th>Dominio</th>
+                                                <th>Accion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="modeRow.payload.rules" t-as="rule" t-key="rule.id">
+                                                <td class="fw-semibold"><t t-out="rule.name"/></td>
+                                                <td>
+                                                    <span class="badge" t-att-class="rule.is_global ? 'o_sdi_badge_scope_global' : 'o_sdi_badge_scope_group'">
+                                                        <t t-out="rule.is_global ? 'Global' : 'Grupo'"/>
+                                                    </span>
+                                                </td>
+                                                <td><t t-out="(rule.groups || []).join(', ') || '-'"/></td>
+                                                <td><code><t t-out="rule.domain"/></code></td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        title="Abrir regla"
+                                                        t-on-click="() => this.openRulePopup(rule.id)">
+                                                        <i class="fa fa-external-link me-1"/>Ver regla
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="alert alert-light border mb-0" t-if="!modeRow.payload.rules.length">
+                                    No hay reglas aplicables para este modo.
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </main>
+            </div>
+        </div>
+    </t>
+</templates>
