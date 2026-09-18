@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates>
+
+    <t t-inherit-mode="extension" t-inherit="web.ReportAction">
+        <xpath expr="//button[@t-on-click='toggleReportFormat']" position="after">
+            <button t-on-click="openReportXmlPopup" type="button" class="btn btn-secondary ms-2" title="Show XML">Ver XML</button>
+        </xpath>
+    </t>
+
+</templates>
